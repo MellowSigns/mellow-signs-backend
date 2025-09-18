@@ -18,9 +18,25 @@ app.use(helmet({
 }));
 
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? ['https://mellowsigns.com', 'https://www.mellowsigns.com'] 
-        : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: function (origin, callback) {
+        // Permitir requests sem origin (ficheiros locais, mobile apps, etc.)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'https://mellowsigns.com',
+            'https://www.mellowsigns.com',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:8000',
+            'http://localhost:8080'
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('mellowsigns')) {
+            return callback(null, true);
+        }
+        
+        return callback(null, true); // Temporariamente permitir todas as origens para teste
+    },
     credentials: true
 }));
 
