@@ -199,8 +199,14 @@ async function uploadToImageKit(file, orderId, index) {
         const sanitizedName = sanitizeFileName(file.originalname);
         const fileName = `${orderId}_${index}_${sanitizedName}`;
         
+        console.log('ImageKit upload attempt:', {
+            fileName: fileName,
+            fileSize: file.size,
+            mimeType: file.mimetype
+        });
+
         const uploadResponse = await imagekit.upload({
-            file: file.buffer,
+            file: file.buffer,  // Buffer direto
             fileName: fileName,
             folder: '/mellow-signs/orders',
             tags: ['mellow-signs', 'order', orderId],
@@ -211,10 +217,9 @@ async function uploadToImageKit(file, orderId, index) {
             }
         });
 
-        logger.info('Upload para ImageKit bem-sucedido', {
+        console.log('ImageKit upload success:', {
             fileId: uploadResponse.fileId,
-            fileName: fileName,
-            orderId: orderId
+            url: uploadResponse.url
         });
 
         return {
@@ -226,14 +231,15 @@ async function uploadToImageKit(file, orderId, index) {
             originalName: file.originalname
         };
     } catch (error) {
-        logger.error('Erro no upload para ImageKit', error, {
-            fileName: file.originalname,
-            orderId: orderId
+        console.error('ImageKit upload detailed error:', {
+            message: error.message,
+            status: error.status,
+            response: error.response?.data || error.response,
+            stack: error.stack
         });
-        throw new Error(`Falha no upload do ficheiro ${file.originalname}`);
+        throw new Error(`Falha no upload do ficheiro ${file.originalname}: ${error.message}`);
     }
 }
-
 // Função para criar pedido no Airtable
 async function createOrder(customerId, orderData, uploadedFiles) {
     try {
