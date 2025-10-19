@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Form</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .upload-zone { 
+            border: 2px dashed #ccc; 
+            padding: 20px; 
+            text-align: center; 
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .upload-zone.dragover { border-color: #007bff; background: #f0f8ff; }
+        .file-list { margin: 10px 0; }
+        .file-item { 
+            background: #f5f5f5; 
+            padding: 10px; 
+            margin: 5px 0; 
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #result { margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Debug Form - Teste de Upload</h1>
+    
+    <div class="upload-zone" id="uploadZone">
+        <p>Arraste ficheiros aqui ou clique para selecionar</p>
+        <input type="file" id="fileInput" multiple style="display: none;">
+    </div>
+    
+    <div class="file-list" id="fileList"></div>
+    
+    <button onclick="testUpload()">Testar Upload</button>
+    
+    <div id="result"></div>
+
+    <script>
+        console.log('Script carregado');
+        
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const result = document.getElementById('result');
+        
+        let selectedFiles = [];
+        
+        // Event listeners
+        uploadZone.addEventListener('click', () => {
+            console.log('Click na zona de upload');
+            fileInput.click();
+        });
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            console.log('Drag over');
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        
+        uploadZone.addEventListener('dragleave', (e) => {
+            console.log('Drag leave');
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            console.log('Drop');
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            console.log('Ficheiros arrastados:', files.length);
+            addFiles(files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            console.log('Ficheiros selecionados');
+            const files = Array.from(e.target.files);
+            console.log('Ficheiros selecionados:', files.length);
+            addFiles(files);
+        });
+        
+        function addFiles(files) {
+            console.log('Adicionando ficheiros:', files);
+            selectedFiles = [...selectedFiles, ...files];
+            updateFileList();
+        }
+        
+        function updateFileList() {
+            console.log('Atualizando lista de ficheiros');
+            fileList.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>${file.name} (${(file.size / 1024).toFixed(1)} KB)</span>
+                    <button onclick="removeFile(${index})">Remover</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+        
+        function removeFile(index) {
+            console.log('Removendo ficheiro:', index);
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+        
+        async function testUpload() {
+            console.log('Iniciando teste de upload');
+            console.log('Ficheiros selecionados:', selectedFiles.length);
+            
+            if (selectedFiles.length === 0) {
+                result.innerHTML = '<p style="color: red;">Nenhum ficheiro selecionado</p>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('nome', 'João Teste');
+            formData.append('email', 'joao@teste.com');
+            formData.append('tipoProduto', 'neon-led');
+            formData.append('comentarios', 'Teste com acentos: São Paulo, coração');
+            
+            selectedFiles.forEach(file => {
+                formData.append('ficheiros', file);
+            });
+            
+            try {
+                console.log('Enviando pedido...');
+                const response = await fetch('http://localhost:3000/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer apidoshopifyquerimaejaestai'
+                    },
+                    body: formData
+                });
+                
+                console.log('Resposta recebida:', response.status);
+                const data = await response.json();
+                console.log('Dados da resposta:', data);
+                
+                result.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                console.error('Erro:', error);
+                result.innerHTML = '<p style="color: red;">Erro: ' + error.message + '</p>';
+            }
+        }
+        
+        console.log('Script inicializado');
+    </script>
+</body>
+</html>

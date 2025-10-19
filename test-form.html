@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mellow Signs - Formulário de Teste</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .required {
+            color: #e74c3c;
+        }
+
+        /* Drag and Drop Zone */
+        .upload-zone {
+            border: 3px dashed #bdc3c7;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+
+        .upload-zone i {
+            font-size: 3em;
+            color: #bdc3c7;
+            margin-bottom: 15px;
+        }
+
+        .upload-zone.dragover i {
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 1.1em;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 0.9em;
+            color: #95a5a6;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .file-size {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .remove-file {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .remove-file:hover {
+            background: #c0392b;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .submit-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e1e5e9;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌟 Mellow Signs</h1>
+            <p>Formulário de Teste - Upload de Ficheiros</p>
+        </div>
+
+        <div class="form-container">
+            <form id="contactForm">
+                <div class="form-group">
+                    <label for="nome">Nome Completo <span class="required">*</span></label>
+                    <input type="text" id="nome" name="nome" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email <span class="required">*</span></label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="telefone">Telefone</label>
+                    <input type="tel" id="telefone" name="telefone">
+                </div>
+
+                <div class="form-group">
+                    <label for="comentarios">Descrição do Pedido</label>
+                    <textarea id="comentarios" name="comentarios" placeholder="Descreva o seu projeto, dimensões, cores, ou outras especificações..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Ficheiros <span class="required">*</span></label>
+                    <div class="upload-zone" id="uploadZone">
+                        <div>📁</div>
+                        <div class="upload-text">Arraste ficheiros para aqui ou clique para selecionar</div>
+                        <div class="upload-hint">Máximo: 10 ficheiros, 40MB cada (JPG, PNG, SVG, WEBP, PDF, TXT)</div>
+                        <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.svg,.webp,.pdf,.txt" style="display: none;">
+                    </div>
+                    <div class="file-list" id="fileList"></div>
+                </div>
+
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <div class="message" id="message"></div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Enviar Pedido
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuração
+        const API_URL = 'http://localhost:3000/api/upload';
+        const API_TOKEN = 'apidoshopifyquerimaejaestai'; // Substitua pelo token real do .env
+
+        // Elementos DOM
+        const form = document.getElementById('contactForm');
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const submitBtn = document.getElementById('submitBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const message = document.getElementById('message');
+
+        // Estado dos ficheiros
+        let selectedFiles = [];
+
+        // Event Listeners
+        uploadZone.addEventListener('click', () => {
+            console.log('Click na zona de upload');
+            fileInput.click();
+        });
+        uploadZone.addEventListener('dragover', handleDragOver);
+        uploadZone.addEventListener('dragleave', handleDragLeave);
+        uploadZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        form.addEventListener('submit', handleSubmit);
+
+        // Funções de Drag and Drop
+        function handleDragOver(e) {
+            console.log('Drag over');
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            console.log('Drag leave');
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            console.log('Drop files');
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            console.log('Ficheiros arrastados:', files.length);
+            addFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            console.log('File select');
+            const files = Array.from(e.target.files);
+            console.log('Ficheiros selecionados:', files.length);
+            addFiles(files);
+        }
+
+        function addFiles(files) {
+            console.log('Adicionando ficheiros:', files);
+            const validFiles = files.filter(file => {
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/webp', 'application/pdf', 'text/plain'];
+                const validExts = ['.jpg', '.jpeg', '.png', '.svg', '.webp', '.pdf', '.txt'];
+                const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+                
+                return validTypes.includes(file.type) || validExts.includes(fileExt);
+            });
+
+            console.log('Ficheiros válidos:', validFiles.length);
+
+            if (validFiles.length !== files.length) {
+                showMessage('Alguns ficheiros foram rejeitados. Apenas JPG, PNG, SVG, WEBP, PDF e TXT são permitidos.', 'error');
+            }
+
+            if (selectedFiles.length + validFiles.length > 10) {
+                showMessage('Máximo de 10 ficheiros permitidos.', 'error');
+                return;
+            }
+
+            selectedFiles = [...selectedFiles, ...validFiles];
+            console.log('Total de ficheiros selecionados:', selectedFiles.length);
+            updateFileList();
+        }
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <div class="file-info">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${formatFileSize(file.size)}</div>
+                    </div>
+                    <button type="button" class="remove-file" onclick="removeFile(${index})">Remover</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 5000);
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = percent + '%';
+        }
+
+        async function handleSubmit(e) {
+            console.log('Submit iniciado');
+            e.preventDefault();
+
+            // Validações
+            if (selectedFiles.length === 0) {
+                console.log('Nenhum ficheiro selecionado');
+                showMessage('Por favor, selecione pelo menos um ficheiro.', 'error');
+                return;
+            }
+
+            console.log('Ficheiros para upload:', selectedFiles.length);
+
+            // Desabilitar botão e mostrar progresso
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando...';
+            progressBar.style.display = 'block';
+            updateProgress(0);
+
+            try {
+                // Preparar FormData
+                const formData = new FormData();
+                formData.append('nome', document.getElementById('nome').value);
+                formData.append('email', document.getElementById('email').value);
+                formData.append('telefone', document.getElementById('telefone').value);
+                formData.append('comentarios', document.getElementById('comentarios').value);
+
+                // Adicionar ficheiros
+                selectedFiles.forEach(file => {
+                    formData.append('ficheiros', file);
+                });
+
+                updateProgress(20);
+
+                // Enviar pedido
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_TOKEN}`
+                    },
+                    body: formData
+                });
+
+                updateProgress(80);
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateProgress(100);
+                    showMessage(`✅ Pedido enviado com sucesso! ID: ${result.data.orderId}`, 'success');
+                    form.reset();
+                    selectedFiles = [];
+                    updateFileList();
+                } else {
+                    showMessage(`❌ Erro: ${result.error}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Erro:', error);
+                showMessage(`❌ Erro de conexão: ${error.message}`, 'error');
+            } finally {
+                // Reabilitar botão
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar Pedido';
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                    updateProgress(0);
+                }, 2000);
+            }
+        }
+
+        // Inicialização
+        console.log('Formulário de teste carregado');
+        console.log('API URL:', API_URL);
+        console.log('Lembre-se de configurar o API_TOKEN com o valor correto do .env');
+    </script>
+</body>
+</html>

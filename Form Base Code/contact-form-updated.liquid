@@ -1,0 +1,401 @@
+{%- assign block_settings = block.settings -%}
+
+<div class="contact-form-wrapper" style="{% render 'size-style', settings: block_settings %}">
+  <form id="mellow-signs-contact-form" class="contact-form" enctype="multipart/form-data">
+    
+    <!-- Campo Nome -->
+    <div class="field">
+      <label for="nome" class="field__label">
+        Nome Completo <span class="required">*</span>
+      </label>
+      <input 
+        type="text" 
+        id="nome" 
+        name="nome" 
+        class="field__input" 
+        required 
+        autocomplete="name"
+      >
+    </div>
+
+    <!-- Campo Email -->
+    <div class="field">
+      <label for="email" class="field__label">
+        Email <span class="required">*</span>
+      </label>
+      <input 
+        type="email" 
+        id="email" 
+        name="email" 
+        class="field__input" 
+        required 
+        autocomplete="email"
+      >
+    </div>
+
+    <!-- Campo Telefone -->
+    <div class="field">
+      <label for="telefone" class="field__label">
+        Telefone
+      </label>
+      <input 
+        type="tel" 
+        id="telefone" 
+        name="telefone" 
+        class="field__input" 
+        autocomplete="tel"
+      >
+    </div>
+
+    <!-- Campo Descrição -->
+    <div class="field">
+      <label for="comentarios" class="field__label">
+        Descrição do Pedido
+      </label>
+      <textarea 
+        id="comentarios" 
+        name="comentarios" 
+        class="field__input field__textarea" 
+        rows="4"
+        placeholder="Descreva o seu projeto, dimensões, cores, ou outras especificações..."
+      ></textarea>
+    </div>
+
+    <!-- Campo Upload de Ficheiro -->
+    <div class="field">
+      <label for="ficheiro" class="field__label">
+        Ficheiro <span class="required">*</span>
+      </label>
+      <input 
+        type="file" 
+        id="ficheiro" 
+        name="ficheiro" 
+        class="field__input field__file" 
+        accept=".jpg,.jpeg,.png,.pdf" 
+        required
+      >
+      <div class="field__help">
+        Formatos aceites: JPG, PNG, PDF (máximo 40MB)
+      </div>
+    </div>
+
+    <!-- Mensagens de Status -->
+    <div id="form-message" class="form-message" style="display: none;"></div>
+
+    <!-- Botão de Submissão -->
+    <div class="field">
+      {{ submit_button }}
+    </div>
+
+  </form>
+</div>
+
+<style>
+  .contact-form-wrapper {
+    max-width: 100%;
+  }
+
+  .field {
+    margin-bottom: 1.5rem;
+  }
+
+  .field__label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--color-foreground);
+  }
+
+  .required {
+    color: var(--color-error);
+  }
+
+  .field__input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .field__input:focus {
+    outline: none;
+    border-color: var(--color-button);
+  }
+
+  .field__textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  .field__file {
+    padding: 0.5rem;
+    background: var(--color-background);
+  }
+
+  .field__help {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--color-foreground-secondary);
+  }
+
+  .form-message {
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+
+  .form-message.success {
+    background: var(--color-success-background);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-border);
+  }
+
+  .form-message.error {
+    background: var(--color-error-background);
+    color: var(--color-error);
+    border: 1px solid var(--color-error-border);
+  }
+
+  .submit-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+</style>
+
+<script>
+(function() {
+  // Configuração - ALTERE ESTES VALORES
+  const API_URL = 'https://mellow-signs-backend.railway.app/api/upload';
+  const API_TOKEN = 'your_api_token_here'; // Substitua pelo token do Railway
+  
+  const form = document.getElementById('mellow-signs-contact-form');
+  const submitButton = form.querySelector('.submit-button');
+  const messageDiv = document.getElementById('form-message');
+  
+  function showMessage(text, type) {
+    messageDiv.textContent = text;
+    messageDiv.className = `form-message ${type}`;
+    messageDiv.style.display = 'block';
+    
+    // Scroll para a mensagem
+    messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Esconder após 5 segundos para mensagens de sucesso
+    if (type === 'success') {
+      setTimeout(() => {
+        messageDiv.style.display = 'none';
+      }, 5000);
+    }
+  }
+  
+  function hideMessage() {
+    messageDiv.style.display = 'none';
+  }
+  
+  function setLoading(loading) {
+    submitButton.disabled = loading;
+    if (loading) {
+      submitButton.textContent = 'Enviando...';
+    } else {
+      submitButton.textContent = '{{ submit_button | strip }}';
+    }
+  }
+  
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Esconder mensagens anteriores
+    hideMessage();
+    
+    // Validações básicas
+    const nome = form.nome.value.trim();
+    const email = form.email.value.trim();
+    const ficheiro = form.ficheiro.files[0];
+    
+    if (!nome) {
+      showMessage('Por favor, insira o seu nome.', 'error');
+      return;
+    }
+    
+    if (!email) {
+      showMessage('Por favor, insira o seu email.', 'error');
+      return;
+    }
+    
+    if (!ficheiro) {
+      showMessage('Por favor, selecione um ficheiro.', 'error');
+      return;
+    }
+    
+    // Validar tamanho do ficheiro (40MB)
+    if (ficheiro.size > 40 * 1024 * 1024) {
+      showMessage('O ficheiro é demasiado grande. Máximo: 40MB', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Preparar FormData
+      const formData = new FormData();
+      formData.append('nome', nome);
+      formData.append('email', email);
+      formData.append('telefone', form.telefone.value.trim());
+      formData.append('comentarios', form.comentarios.value.trim());
+      formData.append('ficheiros', ficheiro);
+      
+      // Enviar pedido
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`
+        },
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        showMessage(`✅ Pedido enviado com sucesso! ID: ${result.data.orderId}`, 'success');
+        form.reset();
+      } else {
+        showMessage(`❌ Erro: ${result.error}`, 'error');
+      }
+      
+    } catch (error) {
+      console.error('Erro:', error);
+      showMessage('❌ Erro de conexão. Tente novamente.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  });
+})();
+</script>
+
+{% schema %}
+{
+  "name": "t:names.contact_form",
+  "tag": null,
+  "settings": [
+    {
+      "type": "select",
+      "id": "width",
+      "label": "t:settings.width_desktop",
+      "options": [
+        {
+          "value": "fit-content",
+          "label": "t:options.fit_content"
+        },
+        {
+          "value": "custom",
+          "label": "t:options.custom"
+        }
+      ],
+      "default": "fit-content"
+    },
+    {
+      "type": "range",
+      "id": "custom_width",
+      "label": "t:settings.width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "visible_if": "{{ block.settings.width == 'custom' }}"
+    },
+    {
+      "type": "select",
+      "id": "width_mobile",
+      "label": "t:settings.width_mobile",
+      "options": [
+        {
+          "value": "fit-content",
+          "label": "t:options.fit_content"
+        },
+        {
+          "value": "custom",
+          "label": "t:options.custom"
+        }
+      ],
+      "default": "fit-content"
+    },
+    {
+      "type": "range",
+      "id": "custom_width_mobile",
+      "label": "t:settings.width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "visible_if": "{{ block.settings.width_mobile == 'custom' }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_color_scheme",
+      "label": "t:settings.inherit_color_scheme",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1",
+      "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+    },
+    {
+      "type": "header",
+      "content": "t:content.padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "t:settings.top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "t:settings.bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-start",
+      "label": "t:settings.left",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-end",
+      "label": "t:settings.right",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.contact_form",
+      "category": "t:categories.forms"
+    }
+  ]
+}
+{% endschema %}

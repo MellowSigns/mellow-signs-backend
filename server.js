@@ -7,6 +7,8 @@ const helmet = require('helmet');
 const ImageKit = require('imagekit');
 const Airtable = require('airtable');
 const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
+const brevo = require('@getbrevo/brevo');
 require('dotenv').config();
 
 const app = express();
@@ -28,11 +30,20 @@ const uploadLimiter = rateLimit({
     message: {
         error: 'Muitas tentativas de upload. Tente novamente em 15 minutos.',
         code: 'RATE_LIMIT_EXCEEDED'
-    }
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    trustProxy: false
 });
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Configurar charset UTF-8 para caracteres portugueses
+app.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    next();
+});
 
 // ===== CONFIGURAÇÃO DOS SERVIÇOS =====
 console.log('🔧 Configurando serviços...');
@@ -61,6 +72,18 @@ try {
     }
 } catch (error) {
     console.log('❌ Erro Airtable:', error.message);
+}
+
+// Brevo Configuration
+let brevoApi = null;
+try {
+    if (process.env.BREVO_API_KEY) {
+        brevoApi = new brevo.TransactionalEmailsApi();
+        brevoApi.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+        console.log('✅ Brevo configurado');
+    }
+} catch (error) {
+    console.log('❌ Erro Brevo:', error.message);
 }
 
 // ===== CONFIGURAÇÃO DO MULTER =====
@@ -93,7 +116,9 @@ const upload = multer({
 
 // ===== FUNÇÕES AUXILIARES =====
 const generateOrderId = () => {
-    return `MS-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    const timestamp = Date.now(); // 13 dígitos
+    const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0'); // 4 dígitos
+    return `${timestamp}${randomDigits}`;
 };
 
 const isValidEmail = (email) => {
@@ -108,31 +133,69 @@ const sanitizeFileName = (filename) => {
         .substring(0, 100);
 };
 
+// Função para converter Buffer para base64
+const bufferToBase64 = (buffer) => {
+    return buffer.toString('base64');
+};
+
+// Middleware de autenticação JWT
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            error: 'Token de acesso necessário',
+            code: 'MISSING_TOKEN'
+        });
+    }
+    
+    // Verificar token fixo (simples para formulário público)
+    if (token !== process.env.API_TOKEN) {
+        return res.status(403).json({
+            success: false,
+            error: 'Token inválido',
+            code: 'INVALID_TOKEN'
+        });
+    }
+    
+    next();
+};
+
 // ===== FUNÇÕES PRINCIPAIS =====
 
-async function findOrCreateCustomer(customerData) {
+async function sendEmailNotification(orderData, orderId, folderPath) {
     try {
-        const existingCustomers = await base('Clientes').select({
-            filterByFormula: `{Email} = "${customerData.email}"`
-        }).firstPage();
-
-        if (existingCustomers.length > 0) {
-            console.log('Cliente existente encontrado');
-            return existingCustomers[0];
+        if (!brevoApi) {
+            console.log('⚠️ Brevo não configurado, email não enviado');
+            return;
         }
 
-        const newCustomer = await base('Clientes').create({
-            'Nome': customerData.nome,
-            'Email': customerData.email,
-            'Telefone': customerData.telefone || '',
-            'Data': new Date().toISOString()
-        }, { typecast: true });
+        const emailData = new brevo.SendSmtpEmail();
+        emailData.subject = `Pedido ${orderId}`;
+        emailData.to = [{ email: 'info@mellowsigns.com', name: 'Mellow Signs' }];
+        emailData.sender = { email: 'info@mellowsigns.com', name: 'Mellow Signs' };
+        
+        // Corpo do email em HTML
+        emailData.htmlContent = `
+            <h2>Novo pedido recebido!</h2>
+            <p><strong>ID Pedido:</strong> ${orderId}</p>
+            <p><strong>Nome:</strong> ${orderData.nome}</p>
+            <p><strong>Email:</strong> ${orderData.email}</p>
+            <p><strong>Telefone:</strong> ${orderData.telefone || 'Não fornecido'}</p>
+            <p><strong>Pedido:</strong> ${orderData.comentarios || 'Sem descrição'}</p>
+            <p><strong>Ficheiros:</strong> <a href="${process.env.IMAGEKIT_URL_ENDPOINT}${folderPath}" target="_blank">Ver pasta do pedido</a></p>
+            <hr>
+            <p><em>Este email foi enviado automaticamente pelo sistema de pedidos.</em></p>
+        `;
 
-        console.log('Novo cliente criado');
-        return newCustomer;
+        const result = await brevoApi.sendTransacEmail(emailData);
+        console.log('✅ Email enviado com sucesso:', result.messageId);
+        
     } catch (error) {
-        console.error('Erro cliente:', error.message);
-        throw new Error('Falha ao processar dados do cliente');
+        console.error('❌ Erro ao enviar email:', error.message);
+        // Não falhar o processo se o email falhar
     }
 }
 
@@ -141,12 +204,19 @@ async function uploadToImageKit(file, orderId, index) {
         const sanitizedName = sanitizeFileName(file.originalname);
         const fileName = `${orderId}_${index}_${sanitizedName}`;
         
-        console.log('Tentando upload ImageKit:', fileName);
+        // Criar estrutura de pastas por data
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const folderPath = `/mellow-signs/orders/${today}/${orderId}`;
+        
+        console.log('Tentando upload ImageKit:', fileName, 'para pasta:', folderPath);
 
+        // Converter buffer para base64 para ImageKit SDK v6
+        const base64File = bufferToBase64(file.buffer);
+        
         const uploadResponse = await imagekit.upload({
-            file: file.buffer,
+            file: base64File,
             fileName: fileName,
-            folder: '/mellow-signs/orders'
+            folder: folderPath
         });
 
         console.log('Upload ImageKit sucesso:', uploadResponse.fileId);
@@ -157,7 +227,8 @@ async function uploadToImageKit(file, orderId, index) {
             url: uploadResponse.url,
             thumbnailUrl: uploadResponse.thumbnailUrl,
             size: file.size,
-            originalName: file.originalname
+            originalName: file.originalname,
+            folderPath: folderPath
         };
     } catch (error) {
         console.error('Erro ImageKit upload:', error.message);
@@ -165,36 +236,33 @@ async function uploadToImageKit(file, orderId, index) {
     }
 }
 
-async function createOrder(customerId, orderData, uploadedFiles) {
+async function createOrder(orderData, uploadedFiles) {
     try {
         const orderId = generateOrderId();
+        console.log('Criando pedido com dados:', orderData);
         
-        const filesData = uploadedFiles.map(file => ({
-            filename: file.fileName,
-            url: file.url,
-            thumbnailUrl: file.thumbnailUrl || '',
-            fileId: file.fileId,
-            size: file.size,
-            originalName: file.originalName
-        }));
+        // Nova estrutura Airtable: apenas tabela "Pedidos"
+        const orderDataToSend = {
+            'ID Pedido': parseInt(orderId), // Campo número no Airtable
+            'Nome': orderData.nome,
+            'Email': orderData.email,
+            'Telefone': orderData.telefone || '',
+            'Data': new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            'Descrição': orderData.comentarios || ''
+        };
+        
+        console.log('Dados do pedido a enviar:', JSON.stringify(orderDataToSend, null, 2));
+        console.log('Tentando criar registo na tabela "Pedidos"');
 
-        const orderRecord = await base('Pedidos').create({
-            'Cliente': [customerId],
-            'ID Pedido': orderId,
-            'Tipo Produto': orderData.tipoProduto || 'Não especificado',
-            'Status': 'Novo',
-            'Data Upload': new Date().toISOString(),
-            'Comentários': orderData.comentarios || '',
-            'Ficheiros Metadata': JSON.stringify(filesData),
-            'Número de Ficheiros': uploadedFiles.length
-        }, { typecast: true });
+        const orderRecord = await base('Pedidos').create(orderDataToSend);
 
         console.log('Pedido criado:', orderId);
 
         return {
             orderId: orderId,
             recordId: orderRecord.id,
-            filesCount: uploadedFiles.length
+            filesCount: uploadedFiles.length,
+            folderPath: uploadedFiles.length > 0 ? uploadedFiles[0].folderPath : null
         };
     } catch (error) {
         console.error('Erro criar pedido:', error.message);
@@ -211,7 +279,8 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         services: {
             imagekit: imagekit ? 'connected' : 'not configured',
-            airtable: base ? 'connected' : 'not configured'
+            airtable: base ? 'connected' : 'not configured',
+            brevo: brevoApi ? 'connected' : 'not configured'
         }
     });
 });
@@ -232,14 +301,13 @@ app.get('/api/product-types', (req, res) => {
 });
 
 // Upload endpoint
-app.post('/api/upload', uploadLimiter, upload.array('ficheiros', 10), async (req, res) => {
+app.post('/api/upload', uploadLimiter, authenticateToken, upload.array('ficheiros', 10), async (req, res) => {
     let uploadedFiles = [];
-    let customer = null;
     let orderId = null;
 
     try {
         // Validações básicas
-        const { nome, email, tipoProduto, comentarios, telefone } = req.body;
+        const { nome, email, telefone, comentarios } = req.body;
         
         if (!nome || !email) {
             return res.status(400).json({
@@ -267,36 +335,33 @@ app.post('/api/upload', uploadLimiter, upload.array('ficheiros', 10), async (req
 
         console.log('Processando upload para:', email);
 
-        // 1. Cliente
-        customer = await findOrCreateCustomer({ nome, email, telefone });
-
-        // 2. ID do pedido
+        // 1. Gerar ID do pedido
         orderId = generateOrderId();
 
-        // 3. Upload ficheiros
+        // 2. Upload ficheiros
         const uploadPromises = req.files.map((file, index) => 
             uploadToImageKit(file, orderId, index)
         );
         
         uploadedFiles = await Promise.all(uploadPromises);
 
-        // 4. Criar pedido
-        const order = await createOrder(customer.id, {
-            tipoProduto, comentarios
+        // 3. Criar pedido
+        const order = await createOrder({
+            nome, email, telefone, comentarios
         }, uploadedFiles);
+
+        // 4. Enviar email de notificação
+        await sendEmailNotification({
+            nome, email, telefone, comentarios
+        }, orderId, order.folderPath);
 
         // 5. Resposta
         res.status(200).json({
             success: true,
             message: 'Upload realizado com sucesso!',
             data: {
-                orderId: order.orderId,
+                orderId: orderId,
                 recordId: order.recordId,
-                customer: {
-                    id: customer.id,
-                    nome: customer.fields.Nome,
-                    email: customer.fields.Email
-                },
                 files: uploadedFiles.map(file => ({
                     fileName: file.fileName,
                     originalName: file.originalName,
@@ -305,11 +370,12 @@ app.post('/api/upload', uploadLimiter, upload.array('ficheiros', 10), async (req
                     size: file.size
                 })),
                 filesCount: uploadedFiles.length,
+                folderPath: order.folderPath,
                 nextSteps: 'A nossa equipa irá analisar o seu pedido e contactá-lo em breve.'
             }
         });
 
-        console.log('Upload completo:', order.orderId);
+        console.log('Upload completo:', orderId);
 
     } catch (error) {
         console.error('Erro upload:', error.message);
@@ -416,5 +482,6 @@ app.listen(PORT, () => {
     📡 Health: http://localhost:${PORT}/health
     🖼️ ImageKit: ${imagekit ? 'OK' : 'NÃO CONFIGURADO'}
     📊 Airtable: ${base ? 'OK' : 'NÃO CONFIGURADO'}
+    📧 Brevo: ${brevoApi ? 'OK' : 'NÃO CONFIGURADO'}
     `);
 });

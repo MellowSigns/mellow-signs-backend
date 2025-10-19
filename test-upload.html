@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste Upload Simples</title>
+</head>
+<body>
+    <h1>Teste de Upload</h1>
+    <form id="testForm">
+        <input type="text" name="nome" placeholder="Nome" value="João Teste" required><br><br>
+        <input type="email" name="email" placeholder="Email" value="joao@teste.com" required><br><br>
+        <input type="text" name="tipoProduto" placeholder="Tipo" value="neon-led" required><br><br>
+        <textarea name="comentarios" placeholder="Comentários">Teste com acentos: São Paulo, coração</textarea><br><br>
+        <input type="file" name="ficheiros" multiple accept=".jpg,.jpeg,.png,.pdf,.txt" required><br><br>
+        <button type="submit">Testar Upload</button>
+    </form>
+    
+    <div id="result"></div>
+
+    <script>
+        const form = document.getElementById('testForm');
+        const result = document.getElementById('result');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer apidoshopifyquerimaejaestai'
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                result.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                result.innerHTML = '<p style="color: red;">Erro: ' + error.message + '</p>';
+            }
+        });
+    </script>
+</body>
+</html>
