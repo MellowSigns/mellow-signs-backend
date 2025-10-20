@@ -6,7 +6,6 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const ImageKit = require('imagekit');
 const Airtable = require('airtable');
-const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
 const brevo = require('@getbrevo/brevo');
 require('dotenv').config();
